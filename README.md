@@ -1,3 +1,5 @@
+![astolfyLogo](src/assets/astolfyLogo.png)
+
 # 🎵 Astolfy Music
 
 A modern, responsive music player web app built with Ionic React that integrates with YouTube Music API. Works seamlessly on both desktop and mobile devices.
