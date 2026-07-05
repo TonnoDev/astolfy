@@ -1,0 +1,7 @@
+{
+  "name": "astolfy",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}

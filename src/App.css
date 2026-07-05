@@ -1,0 +1,33 @@
+/* Main app styles */
+ion-tab-bar {
+  --background: #121212;
+  border-top: 1px solid #333;
+}
+
+ion-tab-button {
+  --color: #888;
+  --color-selected: #00d4ff;
+}
+
+ion-tab-button.tab-selected {
+  --color: #00d4ff;
+}
+
+/* Add space for the player bar at the bottom */
+ion-content {
+  --padding-bottom: 80px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  ion-content {
+    --padding-bottom: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  
+  ion-content {
+    --padding-bottom: 120px;
+  }
+}
