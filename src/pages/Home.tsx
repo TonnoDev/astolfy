@@ -16,6 +16,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { musicAggregator } from '../services/musicService';
 import { Song } from '../types/music';
 import SongCard from '../components/SongCard';
+import astolfyLogo from '../assets/astolfyLogo.png';
 import './Home.css';
 
 const Home: React.FC = () => {
@@ -63,7 +64,12 @@ const Home: React.FC = () => {
     <IonPage>
       <IonHeader>
         <IonToolbar>
-          <IonTitle>🎵 Astolfy Player</IonTitle>
+          <IonTitle>
+            <div className="flex flex-row items-center gap-2">
+            <img src={astolfyLogo} width="35" height="35" alt="Astolfy Logo" className="logo" />
+            Astolfy Player
+            </div>
+          </IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen>

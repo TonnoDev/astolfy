@@ -190,9 +190,9 @@ const Search: React.FC = () => {
             {!hasSearched && !loading && (
               <div className="search-placeholder">
                 <IonText>
-                  <h2>🎵 Find Your Music</h2>
-                  <p>Search for your favorite songs, artists, or albums</p>
-                  <p className="search-tips">
+                  <h2 className="text-2xl font-bold text-primary mb-2">🎵 Find Your Music</h2>
+                  <p className="text-sm text-medium">Search for your favorite songs, artists, or albums</p>
+                  <p className="search-tips mt-4">
                     <strong>Tips:</strong><br/>
                     • Search by artist name<br/>
                     • Search by song title<br/>

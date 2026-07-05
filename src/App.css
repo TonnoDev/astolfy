@@ -1,3 +1,12 @@
+/* Tailwind CSS layer imports.
+ * `@tailwind base;` is intentionally omitted: Tailwind's preflight is
+ * disabled in tailwind.config.js to avoid conflicting with Ionic's own
+ * reset. We only pull in components (e.g. `.container`) and utilities
+ * (everything else: `flex`, `p-4`, `text-primary`, etc.).
+ */
+@tailwind components;
+@tailwind utilities;
+
 /* Main app styles */
 ion-tab-bar {
   --background: #121212;
