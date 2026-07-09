@@ -18,6 +18,14 @@
 #   4. A device connected via USB with USB debugging enabled
 #      (Settings → Developer options → USB debugging)
 #
+# App icon / splash:
+#   The script auto-generates Android icons & splash screens from a source
+#   logo using @capacitor/assets (already in devDependencies). It looks for
+#   a source image (icon.png / logo.png) in an `assets/` or `resources/`
+#   folder at the project root. If none is found, it bootstraps one from
+#   src/assets/astolfyLogo.png. To use a custom hi-res icon (recommended
+#   ≥1024×1024), place it at assets/icon.png.
+#
 # Verify the device is visible & authorized:
 #   adb devices        # the line must end with "device" (not "unauthorized")
 #
@@ -31,6 +39,16 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 BUILD_TYPE="${1:-debug}"
+
+# App icon / splash background colors (used by @capacitor/assets).
+# Edit these to match the Astolfy brand.
+ICON_BG="#000"
+ICON_BG_DARK="#111111"
+SPLASH_BG="#ffffff"
+SPLASH_BG_DARK="#111111"
+
+# Fallback logo used to bootstrap assets/icon.png if no source exists.
+FALLBACK_LOGO="src/assets/astolfy.jpeg"
 
 # --- helpers -----------------------------------------------------------------
 
@@ -70,6 +88,21 @@ device_authorized() {
   # adb devices prints a header line, then "<serial>\t<state>" rows.
   # An authorized, ready device has state "device".
   adb devices | awk 'NR>1 && NF>=2 && $2=="device"{found=1} END{exit !found}'
+}
+
+# Locate the @capacitor/assets source folder (Easy Mode: contains
+# icon.png/logo.png; Custom Mode: icon-foreground/icon-background/etc.).
+find_asset_source_dir() {
+  local d f
+  for d in "assets" "resources"; do
+    [ -d "$d" ] || continue
+    for f in "$d"/icon.png "$d"/icon.jpg "$d"/logo.png "$d"/logo.jpg \
+             "$d"/icon-foreground.png "$d"/icon-background.png \
+             "$d"/icon-only.png "$d"/splash.png "$d"/splash-dark.png; do
+      if [ -f "$f" ]; then echo "$d"; return 0; fi
+    done
+  done
+  return 1
 }
 
 # --- pre-flight checks -------------------------------------------------------
@@ -165,23 +198,23 @@ if [ "$need_write" = "1" ]; then
   ok "sdk.dir=$ANDROID_SDK_DIR"
 fi
 
-# --- 1/5 — JS deps -----------------------------------------------------------
+# --- 1/6 — JS deps -----------------------------------------------------------
 
-echo "==> [1/5] Installing JS dependencies (pnpm, fallback npm)"
+echo "==> [1/6] Installing JS dependencies (pnpm, fallback npm)"
 if command -v pnpm >/dev/null 2>&1; then
   pnpm install
 else
   npm install
 fi
 
-# --- 2/5 — web build ---------------------------------------------------------
+# --- 2/6 — web build ---------------------------------------------------------
 
-echo "==> [2/5] Building the web app (Vite → dist/)"
+echo "==> [2/6] Building the web app (Vite → dist/)"
 npm run build
 
-# --- 3/5 — Capacitor platform ------------------------------------------------
+# --- 3/6 — Capacitor platform ------------------------------------------------
 
-echo "==> [3/5] Adding Capacitor Android platform (if missing)"
+echo "==> [3/6] Adding Capacitor Android platform (if missing)"
 if [ ! -d "android" ]; then
   if command -v pnpm >/dev/null 2>&1; then
     pnpm add -D @capacitor/android @capacitor/cli
@@ -192,7 +225,7 @@ if [ ! -d "android" ]; then
   fi
 fi
 
-# --- 4/5 — sync --------------------------------------------------------------
+# --- 4/6 — sync --------------------------------------------------------------
 
 echo "==> [4/6] Syncing web build into the native project"
 if command -v pnpm >/dev/null 2>&1; then
@@ -204,12 +237,25 @@ fi
 # --- 5/6 — Generate app icons & splash (Capacitor Assets) --------------------
 
 echo "==> [5/6] Generating app icons & splash"
+
+# Bootstrap a source icon if none exists, so the Astolfy logo replaces the
+# default Capacitor icon automatically.
 ASSET_SRC="$(find_asset_source_dir || true)"
 if [ -z "$ASSET_SRC" ]; then
-  warn "No @capacitor/assets source found (assets/ or resources/ with icon.png/logo.png)."
-  warn "Skipping icon generation — default Capacitor icons will be used."
-  warn "Tip: mkdir -p assets && cp src/assets/astolfyLogo.png assets/icon.png"
-else
+  if [ -f "$FALLBACK_LOGO" ]; then
+    info "No assets/ source found — bootstrapping from $FALLBACK_LOGO"
+    mkdir -p assets
+    cp "$FALLBACK_LOGO" "assets/icon.png"
+    ASSET_SRC="assets"
+    ok "Created assets/icon.png (consider replacing with a ≥1024×1024 version for best quality)"
+  else
+    warn "No icon source found and no fallback logo at $FALLBACK_LOGO."
+    warn "Skipping icon generation — default Capacitor icons will be used."
+    warn "To fix: place a logo at assets/icon.png (≥1024×1024 recommended)."
+  fi
+fi
+
+if [ -n "$ASSET_SRC" ]; then
   ok "Asset source: $ASSET_SRC"
   if command -v pnpm >/dev/null 2>&1; then
     ASSETS_CMD=(pnpm exec capacitor-assets)
@@ -225,6 +271,7 @@ else
     ok "Icons & splash generated → android/app/src/main/res"
   else
     warn "@capacitor/assets failed; continuing with existing icons."
+    warn "If the image is too small, use a ≥1024×1024 source at assets/icon.png."
   fi
 fi
 
@@ -232,6 +279,33 @@ fi
 
 echo "==> [6/6] Building the APK ($BUILD_TYPE)"
 cd android
+
+if [ "$BUILD_TYPE" = "release" ]; then
+  ./gradlew assembleRelease || die "Gradle release build failed."
+  APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
+  cd ..
+  ok "Release APK ready: android/$APK_PATH"
+  echo "    Sign it with apksigner before distributing."
+  exit 0
+fi
+
+./gradlew assembleDebug || die "Gradle debug build failed."
+cd ..
+# APK path is relative to the repo root (consistent for adb + messages).
+APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+[ -f "$APK_PATH" ] || die "Build reported success but APK not found at: $APK_PATH"
+
+# Install only if adb is available and a device is authorized.
+if ! require_cmd adb; then
+  warn "adb not available on PATH. Debug APK ready at: $APK_PATH"
+  exit 0
+fi
+adb start-server >/dev/null 2>&1 || true
+if ! device_authorized; then
+  warn "No authorized device detected (adb devices shows none with state 'device')."
+  warn "Connect a phone via USB, enable USB debugging, then tap 'Allow' on the"
+  warn "RSA-key dialog that appears on the phone. Then re-run this script or:"
+  warn "    adb install -r $APK_PATH"
   warn "Debug APK is ready at: $APK_PATH"
   exit 0
 fi
