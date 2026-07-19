@@ -19,15 +19,41 @@ import SongCard from '../components/SongCard';
 import astolfyLogo from '../assets/astolfyLogo.png';
 import './Home.css';
 
+/**
+ * Genres offered in the Home "Trending" filter chip row.
+ *
+ * "All" defers to the plain global trending chart; the others are routed
+ * through MusicAggregator.getTrendingByGenre() which combines Audius'
+ * native genre chart with a YouTube genre search.
+ */
+const GENRES: string[] = [
+  'All',
+  'Pop',
+  'Hip-Hop',
+  'Rock',
+  'Metal',
+  'Electronic',
+  'Dance & EDM',
+  'R&B',
+  'Latin',
+  'Jazz',
+  'Classical',
+  'Reggae',
+  'Country',
+  'Ambient',
+  'Lo-fi'
+];
+
 const Home: React.FC = () => {
   const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedGenre, setSelectedGenre] = useState<string>('All');
   const { playSong, setQueue } = usePlayer();
 
-  const loadTrendingSongs = async () => {
+  const loadTrendingSongs = async (genre: string = 'All') => {
     try {
       setLoading(true);
-      const songs = await musicAggregator.getTrendingAll();
+      const songs = await musicAggregator.getTrendingByGenre(genre);
       setTrendingSongs(songs);
     } catch (error) {
       console.error('Error loading trending songs:', error);
@@ -37,12 +63,16 @@ const Home: React.FC = () => {
   };
 
   useEffect(() => {
-    loadTrendingSongs();
-  }, []);
+    loadTrendingSongs(selectedGenre);
+  }, [selectedGenre]);
 
   const handleRefresh = async (event: CustomEvent<RefresherEventDetail>) => {
-    await loadTrendingSongs();
+    await loadTrendingSongs(selectedGenre);
     event.detail.complete();
+  };
+
+  const handleGenreChange = (genre: string) => {
+    setSelectedGenre(genre);
   };
 
   const handlePlaySong = (song: Song) => {
@@ -97,11 +127,26 @@ const Home: React.FC = () => {
             </IonText>
           </div>
 
+          {/* Genre Filters */}
+          <div className="genre-filters-container">
+            <div className="genre-filters">
+              {GENRES.map((genre) => (
+                <button
+                  key={genre}
+                  className={`genre-chip ${selectedGenre === genre ? 'active' : ''}`}
+                  onClick={() => handleGenreChange(genre)}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Trending Section */}
           <div className="trending-section">
             <div className="section-header">
               <IonText>
-                <h3>Trending Now</h3>
+                <h3>{selectedGenre === 'All' ? 'Trending Now' : `Trending ${selectedGenre}`}</h3>
               </IonText>
               {trendingSongs.length > 0 && (
                 <button className="play-all-button" onClick={handlePlayAll}>
@@ -116,7 +161,7 @@ const Home: React.FC = () => {
                 <p>Loading trending songs...</p>
               </div>
             ) : (
-              <div className="songs-grid">
+              <div className="songs-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {trendingSongs.length > 0 ? (
                   trendingSongs.map((song) => (
                     <SongCard

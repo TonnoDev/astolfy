@@ -116,11 +116,11 @@ export class AudiusService {
     }
   }
 
-  async getTrending(limit = 20): Promise<Song[]> {
+  async getTrending(limit = 20, genre: string = 'All'): Promise<Song[]> {
     try {
       const host = await this.ensureHost();
       const resp = await axios.get(`${host}/v1/tracks/trending`, {
-        params: { app_name: 'astolfy', time: 'week', genre: 'All' },
+        params: { app_name: 'astolfy', time: 'week', genre },
         timeout: 7000
       });
       const data = resp.data as any;
