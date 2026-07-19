@@ -82,6 +82,73 @@ export class MusicAggregator {
   }
 
   /**
+   * Get trending for a specific genre.
+   *
+   * Audius supports a native genre filter on its /trending endpoint, so
+   * for non-"All" genres we lean on it. YouTube has no per-genre trending
+   * chart, so we approximate "trending" for that genre by running a
+   * regular search (e.g. "metal music") which surfaces popular uploads.
+   *
+   * For "All" we just defer to getTrendingAll().
+   */
+  async getTrendingByGenre(genre: string): Promise<Song[]> {
+    if (!genre || genre === 'All') {
+      return this.getTrendingAll();
+    }
+
+    // Audius expects specific genre slugs. We pass the human-readable
+    // genre and let Audius map it; if it returns nothing, we still have
+    // the YouTube search results.
+    const audiusGenre = this.toAudiusGenre(genre);
+
+    const [yt, audius] = await Promise.all([
+      youtubeMusicService.searchSongs(`${genre} trending`).catch(() => [] as Song[]),
+      audiusService.getTrending(20, audiusGenre).catch(() => [] as Song[])
+    ]);
+
+    return mergeAndDedupe([yt, audius]);
+  }
+
+  /**
+   * Map our internal genre labels to the slugs Audius expects on the
+   * /v1/tracks/trending endpoint. See https://docs.audius.org for the
+   * current list.
+   */
+  private toAudiusGenre(genre: string): string {
+    const map: Record<string, string> = {
+      'All': 'All',
+      'Electronic': 'Electronic',
+      'Hip-Hop': 'Hip-Hop/Rap',
+      'Hip-Hop/Rap': 'Hip-Hop/Rap',
+      'Rap': 'Hip-Hop/Rap',
+      'Pop': 'Pop',
+      'R&B': 'R&B/Soul',
+      'R&B/Soul': 'R&B/Soul',
+      'Latin': 'Latin',
+      'Dance & EDM': 'Dance & EDM',
+      'EDM': 'Dance & EDM',
+      'Dance': 'Dance & EDM',
+      'House': 'House',
+      'Techno': 'Techno',
+      'Dubstep': 'Dubstep',
+      'Drum & Bass': 'Drum & Bass',
+      'Trap': 'Trap',
+      'Ambient': 'Ambient',
+      'Lo-fi': 'Lo-fi',
+      'Rock': 'Rock',
+      'Metal': 'Metal',
+      'Jazz': 'Jazz',
+      'Classical': 'Classical',
+      'Alternative': 'Alternative',
+      'Country': 'Country',
+      'Reggae': 'Reggae',
+      'Reggaeton': 'Reggaeton',
+      'World': 'World'
+    };
+    return map[genre] || genre;
+  }
+
+  /**
    * Find an alternative, embeddable version of a song that returned
    * YouTube Error 150 (embedding restricted on the official video).
    *

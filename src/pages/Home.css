@@ -28,6 +28,51 @@
   padding: 0 16px;
 }
 
+/* Genre Filters */
+.genre-filters-container {
+  padding: 0 16px 16px 16px;
+  margin-bottom: 8px;
+}
+
+.genre-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.genre-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.genre-chip {
+  flex-shrink: 0;
+  background: #2d2d2d;
+  color: #ccc;
+  border: 1px solid #444;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.genre-chip:hover {
+  background: #383838;
+  color: #fff;
+}
+
+.genre-chip.active {
+  background: #00d4ff;
+  color: #000;
+  border-color: #00d4ff;
+  font-weight: 600;
+}
+
 .section-header {
   display: flex;
   justify-content: space-between;

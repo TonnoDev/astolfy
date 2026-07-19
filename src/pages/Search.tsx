@@ -15,6 +15,12 @@ import { usePlayer } from '../context/PlayerContext';
 import { musicAggregator } from '../services/musicService';
 import { Song } from '../types/music';
 import SongCard from '../components/SongCard';
+import {
+  getSearchHistory,
+  addSearchToHistory,
+  removeSearchFromHistory,
+  clearSearchHistory
+} from '../utils/searchHistory';
 import './Search.css';
 
 const Search: React.FC = () => {
@@ -23,11 +29,17 @@ const Search: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const { playSong, setQueue } = usePlayer();
 
   // Debounce timer + race-condition guard for async searches.
   const searchTimerRef = useRef<number | null>(null);
   const lastRequestIdRef = useRef(0);
+
+  // Load persisted history once on mount.
+  useEffect(() => {
+    setSearchHistory(getSearchHistory());
+  }, []);
 
   /**
    * Update the controlled input value IMMEDIATELY on every keystroke.
@@ -83,6 +95,13 @@ const Search: React.FC = () => {
         if (requestId !== lastRequestIdRef.current) return;
 
         setSearchResults(results);
+
+        // Persist into history only if we actually got results, so we
+        // don't pollute suggestions with failed queries.
+        if (results.length > 0) {
+          setSearchHistory(addSearchToHistory(q));
+        }
+
         if (results.length === 0) {
           setError('No results found. Try different keywords.');
         }
@@ -115,6 +134,27 @@ const Search: React.FC = () => {
     playSong(song);
   };
 
+  /** Re-run a previous search by clicking its history entry. */
+  const handleHistoryClick = (q: string) => {
+    setSearchQuery(q);
+  };
+
+  /** Remove a single entry from the saved history. */
+  const handleRemoveHistoryItem = (q: string) => {
+    setSearchHistory(removeSearchFromHistory(q));
+  };
+
+  /** Wipe the whole history. */
+  const handleClearHistory = () => {
+    clearSearchHistory();
+    setSearchHistory([]);
+  };
+
+  // Show the history block only when the user is not actively searching,
+  // i.e. the input is too short / empty and no results are on screen.
+  const showHistory =
+    searchHistory.length > 0 && !hasSearched && !loading;
+
   return (
     <IonPage>
       <IonHeader>
@@ -143,6 +183,45 @@ const Search: React.FC = () => {
               }}
             />
           </div>
+
+          {/* Search History */}
+          {showHistory && (
+            <div className="search-history">
+              <div className="search-history-header">
+                <IonText>
+                  <h3>Recent searches</h3>
+                </IonText>
+                <button
+                  className="clear-history-button"
+                  onClick={handleClearHistory}
+                >
+                  Cancella Cronologia
+                </button>
+              </div>
+              <ul className="search-history-list">
+                {searchHistory.map((q) => (
+                  <li key={q} className="search-history-item">
+                    <button
+                      className="search-history-term"
+                      onClick={() => handleHistoryClick(q)}
+                      title={`Search "${q}" again`}
+                    >
+                      <span className="search-history-icon">🕐</span>
+                      <span className="search-history-text">{q}</span>
+                    </button>
+                    <button
+                      className="search-history-remove"
+                      onClick={() => handleRemoveHistoryItem(q)}
+                      title="Remove from history"
+                      aria-label={`Remove ${q} from history`}
+                    >
+                      <span className="remove-icon-x">✕</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Search Results */}
           <div className="search-results">
@@ -187,7 +266,7 @@ const Search: React.FC = () => {
               </div>
             )}
 
-            {!hasSearched && !loading && (
+            {!hasSearched && !loading && searchHistory.length === 0 && (
               <div className="search-placeholder">
                 <IonText>
                   <h2 className="text-2xl font-bold text-primary mb-2">🎵 Find Your Music</h2>
